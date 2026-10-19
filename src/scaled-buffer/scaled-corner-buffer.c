@@ -172,22 +172,14 @@ _render(struct scaled_corner_buffer *self)
 		double line_width = MIN(bwd, rd);
 		double half_lw = line_width / 2.0;
 		cairo_set_line_width(cairo, line_width);
-		/*
-		 * Trim the arc ends away from the straight tangents: the
-		 * crisp segment rectangles already cover the junctions with
-		 * overlap, and the trimmed ends avoid the anti-aliasing tail
-		 * of the arc stroke running parallel to the straight border
-		 * (which showed up as an extra inner wall).
-		 */
-		int trim = 12 * LAB_CORNER_DEG;
 		if (self->right) {
-			cairo_move_to(cairo, wd - rd, rd);
+			cairo_move_to(cairo, wd - rd, half_lw);
 			cairo_arc(cairo, wd - rd, rd, rd - half_lw,
-				-90 * LAB_CORNER_DEG + trim, -trim);
+				-90 * LAB_CORNER_DEG, 0);
 		} else {
-			cairo_move_to(cairo, rd, rd);
+			cairo_move_to(cairo, half_lw, rd);
 			cairo_arc(cairo, rd, rd, rd - half_lw,
-				180 * LAB_CORNER_DEG + trim, 270 * LAB_CORNER_DEG - trim);
+				180 * LAB_CORNER_DEG, 270 * LAB_CORNER_DEG);
 		}
 		cairo_stroke(cairo);
 	}
