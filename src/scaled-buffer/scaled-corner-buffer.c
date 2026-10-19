@@ -88,8 +88,17 @@ _render(struct scaled_corner_buffer *self)
 		dx_dev = x0;
 	}
 
+	int buf_w = snap(self->node_x + self->total_width, s) - snap(self->node_x, s);
+	int buf_h = snap(self->node_y + self->total_height, s) - snap(self->node_y, s);
+	/* Draw in device pixels: reset the device scale set by
+	 * buffer_create_cairo() so integer coordinates are crisp */
+	cairo_surface_set_device_scale(buffer->surface, 1, 1);
 	cairo_t *cairo = cairo_create(buffer->surface);
-	cairo_translate(cairo, dx_dev / s, dy_dev / s);
+	cairo_translate(cairo, dx_dev, dy_dev);
+	double wd = w * s;
+	double hd = h * s;
+	double rd = r * s;
+	double bwd = bw * s;
 
 	/* Transparent background */
 	cairo_set_operator(cairo, CAIRO_OPERATOR_CLEAR);
@@ -100,55 +109,56 @@ _render(struct scaled_corner_buffer *self)
 	cairo_new_sub_path(cairo);
 	if (r <= 0) {
 		cairo_move_to(cairo, 0, 0);
-		cairo_line_to(cairo, w, 0);
-		cairo_line_to(cairo, w, h);
-		cairo_line_to(cairo, 0, h);
+		cairo_line_to(cairo, wd, 0);
+		cairo_line_to(cairo, wd, hd);
+		cairo_line_to(cairo, 0, hd);
 	} else if (self->right) {
-		cairo_arc(cairo, w - r, r, r, -90 * LAB_CORNER_DEG, 0);
-		cairo_line_to(cairo, w, h);
-		cairo_line_to(cairo, 0, h);
+		cairo_arc(cairo, wd - rd, rd, rd, -90 * LAB_CORNER_DEG, 0);
+		cairo_line_to(cairo, wd, hd);
+		cairo_line_to(cairo, 0, hd);
 		cairo_line_to(cairo, 0, 0);
 	} else {
-		cairo_arc(cairo, r, r, r, 180 * LAB_CORNER_DEG, 270 * LAB_CORNER_DEG);
-		cairo_line_to(cairo, w, 0);
-		cairo_line_to(cairo, w, h);
-		cairo_line_to(cairo, 0, h);
+		cairo_arc(cairo, rd, rd, rd, 180 * LAB_CORNER_DEG, 270 * LAB_CORNER_DEG);
+		cairo_line_to(cairo, wd, 0);
+		cairo_line_to(cairo, wd, hd);
+		cairo_line_to(cairo, 0, hd);
 	}
 	cairo_close_path(cairo);
 	cairo_set_operator(cairo, CAIRO_OPERATOR_SOURCE);
 	cairo_set_source(cairo, self->fill_pattern);
 	cairo_fill(cairo);
 
-	/* Straight border segments */
-	cairo_set_line_cap(cairo, CAIRO_LINE_CAP_BUTT);
+	/*
+	 * Crisp straight border segments: integer device pixel
+	 * rectangles, matching scaled_rect_buffer rendering.
+	 */
+	int Rdev = (int)lround(r * s);
+	int seg = MAX(0, Rdev - 1);
 	set_cairo_color(cairo, self->border_color);
-	cairo_set_line_width(cairo, bw);
-	double half_bw = bw / 2.0;
 	if (self->right) {
-		cairo_move_to(cairo, 0, half_bw);
-		cairo_line_to(cairo, w - r, half_bw);
-		cairo_move_to(cairo, w - half_bw, r);
-		cairo_line_to(cairo, w - half_bw, h);
+		cairo_rectangle(cairo, x0, y0 + seg, t, buf_h - y0 - seg);
+		int hx = x0 + t - Rdev + 1;
+		if (hx > 0) {
+			cairo_rectangle(cairo, 0, y0, MIN(hx, buf_w), t);
+		}
 	} else {
-		cairo_move_to(cairo, half_bw, h);
-		cairo_line_to(cairo, half_bw, r);
-		cairo_move_to(cairo, r, half_bw);
-		cairo_line_to(cairo, w, half_bw);
+		cairo_rectangle(cairo, x0, y0 + seg, t, buf_h - y0 - seg);
+		cairo_rectangle(cairo, x0 + seg, y0, buf_w - x0 - seg, t);
 	}
-	cairo_stroke(cairo);
+	cairo_fill(cairo);
 
 	/* Arc section */
 	if (r > 0) {
-		double line_width = MIN(bw, r);
+		double line_width = MIN(bwd, rd);
 		double half_lw = line_width / 2.0;
 		cairo_set_line_width(cairo, line_width);
 		if (self->right) {
-			cairo_move_to(cairo, w - r, half_lw);
-			cairo_arc(cairo, w - r, r, r - half_lw,
+			cairo_move_to(cairo, wd - rd, half_lw);
+			cairo_arc(cairo, wd - rd, rd, rd - half_lw,
 				-90 * LAB_CORNER_DEG, 0);
 		} else {
-			cairo_move_to(cairo, half_lw, r);
-			cairo_arc(cairo, r, r, r - half_lw,
+			cairo_move_to(cairo, half_lw, rd);
+			cairo_arc(cairo, rd, rd, rd - half_lw,
 				180 * LAB_CORNER_DEG, 270 * LAB_CORNER_DEG);
 		}
 		cairo_stroke(cairo);

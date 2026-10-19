@@ -58,10 +58,11 @@ _compute_ink_rect(struct scaled_rect_buffer *self,
 		break;
 	case SCALED_RECT_SPAN_BETWEEN: {
 		int t = (int)lround(self->height * s);
-		x0 = snap(self->edge_x, s) - t - snap(self->node_x, s);
-		w = snap(self->edge_x + self->width, s) + t
-			- snap(self->node_x, s) - x0 - snap(self->node_x, s);
-		w = snap(self->edge_x + self->width, s) + t - (x0 + snap(self->node_x, s));
+		int ins0 = (int)lround(self->inset_start * s);
+		int ins1 = (int)lround(self->inset_end * s);
+		x0 = snap(self->edge_x, s) - t + ins0 - snap(self->node_x, s);
+		w = snap(self->edge_x + self->width, s) + t - ins1
+			- (x0 + snap(self->node_x, s));
 		break; }
 	default:
 		w = (int)lround(self->width * s);
@@ -214,7 +215,8 @@ void
 scaled_rect_buffer_update(struct scaled_rect_buffer *self,
 		int width, int height, const float *color,
 		enum scaled_rect_axis mode_x, enum scaled_rect_axis mode_y,
-		double node_x, double node_y, double edge_x, double edge_y)
+		double node_x, double node_y, double edge_x, double edge_y,
+		int inset_start, int inset_end)
 {
 	assert(self);
 	assert(color);
@@ -232,6 +234,8 @@ scaled_rect_buffer_update(struct scaled_rect_buffer *self,
 			&& self->mode_x == mode_x && self->mode_y == mode_y
 			&& self->node_x == node_x && self->node_y == node_y
 			&& self->edge_x == edge_x && self->edge_y == edge_y
+			&& self->inset_start == inset_start
+			&& self->inset_end == inset_end
 			&& !memcmp(self->color, color, sizeof(self->color))) {
 		return;
 	}
@@ -246,6 +250,8 @@ scaled_rect_buffer_update(struct scaled_rect_buffer *self,
 	self->node_y = node_y;
 	self->edge_x = edge_x;
 	self->edge_y = edge_y;
+	self->inset_start = inset_start;
+	self->inset_end = inset_end;
 	memcpy(self->color, color, sizeof(self->color));
 
 	/*

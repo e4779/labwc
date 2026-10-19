@@ -49,6 +49,8 @@ struct scaled_rect_buffer {
 	double node_y;
 	double edge_x; /* absolute logical edge to hug (HUG modes) */
 	double edge_y;
+	int inset_start; /* SPAN_BETWEEN insets (logical) */
+	int inset_end;
 	double active_scale;
 	int last_ink_x, last_ink_y, last_ink_w, last_ink_h;
 	float last_color[4];
@@ -68,7 +70,8 @@ struct scaled_rect_buffer *scaled_rect_buffer_create(struct wlr_scene_tree *pare
 void scaled_rect_buffer_update(struct scaled_rect_buffer *self,
 	int width, int height, const float *color,
 	enum scaled_rect_axis mode_x, enum scaled_rect_axis mode_y,
-	double node_x, double node_y, double edge_x, double edge_y);
+	double node_x, double node_y, double edge_x, double edge_y,
+	int inset_start, int inset_end);
 
 /** Change only the color and re-render if needed. */
 void scaled_rect_buffer_set_color(struct scaled_rect_buffer *self,
