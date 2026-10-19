@@ -97,7 +97,6 @@ _render(struct scaled_corner_buffer *self)
 	 * buffer_create_cairo() so integer coordinates are crisp */
 	cairo_surface_set_device_scale(buffer->surface, 1, 1);
 	cairo_t *cairo = cairo_create(buffer->surface);
-	cairo_translate(cairo, dx_dev, dy_dev);
 	double wd = w * s;
 	double hd = h * s;
 	double rd = r * s;
@@ -106,8 +105,11 @@ _render(struct scaled_corner_buffer *self)
 	/* Transparent background */
 	cairo_set_operator(cairo, CAIRO_OPERATOR_CLEAR);
 	cairo_paint(cairo);
+	cairo_set_operator(cairo, CAIRO_OPERATOR_SOURCE);
 
-	/* Background fill path (same shape as theme.c) */
+	/* Background fill path (logical theme drawing, shifted) */
+	cairo_save(cairo);
+	cairo_translate(cairo, dx_dev, dy_dev);
 	cairo_set_line_width(cairo, 0.0);
 	cairo_new_sub_path(cairo);
 	if (r <= 0) {
@@ -130,47 +132,62 @@ _render(struct scaled_corner_buffer *self)
 	cairo_set_operator(cairo, CAIRO_OPERATOR_SOURCE);
 	cairo_set_source(cairo, self->fill_pattern);
 	cairo_fill(cairo);
+	cairo_restore(cairo);
 
 	/*
 	 * Crisp straight border segments: integer device pixel
-	 * rectangles, matching scaled_rect_buffer rendering.
+	 * rectangles in absolute buffer coordinates (NOT affected by
+	 * the anchor translate, which is only for the logical theme
+	 * drawing), matching scaled_rect_buffer rendering.
 	 */
-	int Rdev = (int)lround(r * s);
-	int seg = MAX(0, Rdev - 1);
-	set_cairo_color(cairo, self->border_color);
-	/* Clamp segments to the corner box, not the padded buffer,
-	 * so they do not overdraw the titlebar or content. */
-	int box_h = MIN((int)lround(hd), buf_h);
-	int box_w = MIN((int)lround(wd), buf_w);
-	int vy0 = y0 + seg;
-	if (box_h > vy0) {
-		cairo_rectangle(cairo, x0, vy0, t, box_h - vy0);
-	}
-	if (self->right) {
-		int hx = x0 + t - Rdev + 1;
-		if (hx > 0) {
-			cairo_rectangle(cairo, 0, y0, MIN(hx, box_w), t);
+	{
+		int Rdev = (int)lround(r * s);
+		int seg = MAX(0, Rdev - 1);
+		set_cairo_color(cairo, self->border_color);
+		/* Clamp segments to the corner box, not the padded buffer,
+		 * so they do not overdraw the titlebar or content. */
+		int box_h = MIN((int)lround(hd), buf_h);
+		int box_w = MIN((int)lround(wd), buf_w);
+		int vy0 = y0 + seg;
+		if (box_h > vy0) {
+			cairo_rectangle(cairo, x0, vy0, t, box_h - vy0);
 		}
-	} else {
-		if (box_w > x0 + seg) {
-			cairo_rectangle(cairo, x0 + seg, y0, box_w - x0 - seg, t);
+		if (self->right) {
+			int hx = x0 + t - Rdev + 1;
+			if (hx > 0) {
+				cairo_rectangle(cairo, 0, y0, MIN(hx, box_w), t);
+			}
+		} else {
+			if (box_w > x0 + seg) {
+				cairo_rectangle(cairo, x0 + seg, y0, box_w - x0 - seg, t);
+			}
 		}
+		cairo_fill(cairo);
 	}
-	cairo_fill(cairo);
 
-	/* Arc section */
+	/* Arc section (logical theme drawing, shifted) */
+	cairo_save(cairo);
+	cairo_translate(cairo, dx_dev, dy_dev);
 	if (r > 0) {
 		double line_width = MIN(bwd, rd);
 		double half_lw = line_width / 2.0;
 		cairo_set_line_width(cairo, line_width);
+		/*
+		 * Trim the arc ends away from the straight tangents: the
+		 * crisp segment rectangles already cover the junctions with
+		 * overlap, and the trimmed ends avoid the anti-aliasing tail
+		 * of the arc stroke running parallel to the straight border
+		 * (which showed up as an extra inner wall).
+		 */
+		int trim = 12 * LAB_CORNER_DEG;
 		if (self->right) {
-			cairo_move_to(cairo, wd - rd, half_lw);
+			cairo_move_to(cairo, wd - rd, rd);
 			cairo_arc(cairo, wd - rd, rd, rd - half_lw,
-				-90 * LAB_CORNER_DEG, 0);
+				-90 * LAB_CORNER_DEG + trim, -trim);
 		} else {
-			cairo_move_to(cairo, half_lw, rd);
+			cairo_move_to(cairo, rd, rd);
 			cairo_arc(cairo, rd, rd, rd - half_lw,
-				180 * LAB_CORNER_DEG, 270 * LAB_CORNER_DEG);
+				180 * LAB_CORNER_DEG + trim, 270 * LAB_CORNER_DEG - trim);
 		}
 		cairo_stroke(cairo);
 	}
