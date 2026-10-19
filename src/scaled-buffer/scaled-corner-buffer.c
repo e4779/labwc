@@ -58,9 +58,12 @@ _render(struct scaled_corner_buffer *self)
 	int x0, y0;
 	_compute_anchor(self, &x0, &y0);
 
-	if (self->rendered && x0 == self->last_x0 && y0 == self->last_y0) {
-		return;
-	}
+	/*
+	 * Note: no change detection on x0/y0 alone here. At fractional
+	 * scales snap(edge) - snap(node) is NOT invariant under window
+	 * moves, so the caller (update()) gates re-renders via its full
+	 * parameter comparison instead.
+	 */
 
 	struct lab_data_buffer *buffer = buffer_create_cairo(
 		self->total_width, self->total_height, s);
