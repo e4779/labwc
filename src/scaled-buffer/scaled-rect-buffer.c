@@ -27,6 +27,10 @@ round_up_4(int v)
 	return v > 0 ? (v + 3) & ~3 : 0;
 }
 
+/* Last scale seen on any output; used to bootstrap new or not yet
+ * visible buffers so they do not flash at scale 1 when first shown. */
+static double g_last_output_scale;
+
 /* Replicate wlroots scale_box() edge snapping */
 static int
 snap(double logical, double scale)
@@ -170,6 +174,7 @@ _handle_outputs_update(struct wl_listener *listener, void *data)
 		max_scale = MAX(max_scale, event->active[i]->output->scale);
 	}
 	if (max_scale && self->active_scale != max_scale) {
+		g_last_output_scale = max_scale;
 		self->active_scale = max_scale;
 		/* Force re-render: reset last state */
 		self->last_ink_w = -1;
@@ -260,7 +265,8 @@ scaled_rect_buffer_update(struct scaled_rect_buffer *self,
 	 * an outputs_update event. Render at scale 1 until then.
 	 */
 	if (self->active_scale <= 0) {
-		self->active_scale = 1;
+		self->active_scale = g_last_output_scale > 0
+			? g_last_output_scale : 1;
 	}
 	_render(self);
 }

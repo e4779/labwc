@@ -17,6 +17,9 @@
 
 #define LAB_CORNER_DEG 0.017453292519943295
 
+/* See scaled-rect-buffer.c */
+static double g_last_output_scale;
+
 static int
 round_up_4(int v)
 {
@@ -207,6 +210,7 @@ _handle_outputs_update(struct wl_listener *listener, void *data)
 		max_scale = MAX(max_scale, event->active[i]->output->scale);
 	}
 	if (max_scale && self->active_scale != max_scale) {
+		g_last_output_scale = max_scale;
 		self->active_scale = max_scale;
 		self->rendered = false;
 		_render(self);
@@ -285,7 +289,8 @@ scaled_corner_buffer_update(struct scaled_corner_buffer *self,
 	memcpy(self->border_color, border_color, sizeof(self->border_color));
 
 	if (self->active_scale <= 0) {
-		self->active_scale = 1;
+		self->active_scale = g_last_output_scale > 0
+			? g_last_output_scale : 1;
 	}
 	_render(self);
 }
