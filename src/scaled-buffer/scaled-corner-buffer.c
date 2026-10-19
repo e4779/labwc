@@ -135,15 +135,23 @@ _render(struct scaled_corner_buffer *self)
 	int Rdev = (int)lround(r * s);
 	int seg = MAX(0, Rdev - 1);
 	set_cairo_color(cairo, self->border_color);
+	/* Clamp segments to the corner box, not the padded buffer,
+	 * so they do not overdraw the titlebar or content. */
+	int box_h = MIN((int)lround(hd), buf_h);
+	int box_w = MIN((int)lround(wd), buf_w);
+	int vy0 = y0 + seg;
+	if (box_h > vy0) {
+		cairo_rectangle(cairo, x0, vy0, t, box_h - vy0);
+	}
 	if (self->right) {
-		cairo_rectangle(cairo, x0, y0 + seg, t, buf_h - y0 - seg);
 		int hx = x0 + t - Rdev + 1;
 		if (hx > 0) {
-			cairo_rectangle(cairo, 0, y0, MIN(hx, buf_w), t);
+			cairo_rectangle(cairo, 0, y0, MIN(hx, box_w), t);
 		}
 	} else {
-		cairo_rectangle(cairo, x0, y0 + seg, t, buf_h - y0 - seg);
-		cairo_rectangle(cairo, x0 + seg, y0, buf_w - x0 - seg, t);
+		if (box_w > x0 + seg) {
+			cairo_rectangle(cairo, x0 + seg, y0, box_w - x0 - seg, t);
+		}
 	}
 	cairo_fill(cairo);
 
