@@ -110,11 +110,13 @@ struct ssd {
 	} titlebar;
 
 	/* Borders allow resizing as well */
-	struct ssd_border_scene {
+	struct scaled_rect_buffer;
+
+struct ssd_border_scene {
 		struct wlr_scene_tree *tree;
 		struct ssd_border_subtree {
 			struct wlr_scene_tree *tree;
-			struct wlr_scene_rect *top, *bottom, *left, *right;
+			struct scaled_rect_buffer *top, *bottom, *left, *right;
 		} subtrees[2]; /* indexed by enum ssd_active_state */
 	} border;
 

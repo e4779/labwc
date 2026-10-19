@@ -16,6 +16,7 @@
 #include "config/rcxml.h"
 #include "labwc.h"
 #include "node.h"
+#include "scaled-buffer/scaled-rect-buffer.h"
 #include "ssd-internal.h"
 #include "theme.h"
 #include "view.h"
@@ -349,7 +350,8 @@ ssd_enable_keybind_inhibit_indicator(struct ssd *ssd, bool enable)
 	float *color = enable
 		? rc.theme->window_toggled_keybinds_color
 		: rc.theme->window[SSD_ACTIVE].border_color;
-	wlr_scene_rect_set_color(ssd->border.subtrees[SSD_ACTIVE].top, color);
+	struct scaled_rect_buffer *top = ssd->border.subtrees[SSD_ACTIVE].top;
+	scaled_rect_buffer_update(top, top->width, top->height, color);
 }
 
 bool
