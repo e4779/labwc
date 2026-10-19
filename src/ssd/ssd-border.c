@@ -72,7 +72,8 @@ ssd_border_create(struct ssd *ssd)
 			vx - theme->border_width,
 			vy - ssd->titlebar.height - theme->border_width,
 			vx, vy - ssd->titlebar.height - theme->border_width,
-			rc.corner_radius, rc.corner_radius);
+			ssd_should_be_squared(ssd) ? 0 : rc.corner_radius,
+			ssd_should_be_squared(ssd) ? 0 : rc.corner_radius);
 	}
 
 	if (view->maximized == VIEW_AXIS_BOTH) {
@@ -178,7 +179,8 @@ ssd_border_update(struct ssd *ssd)
 			vx - theme->border_width,
 			vy - ssd->titlebar.height - theme->border_width,
 			vx, vy - ssd->titlebar.height - theme->border_width,
-			rc.corner_radius, rc.corner_radius);
+			ssd_should_be_squared(ssd) ? 0 : rc.corner_radius,
+			ssd_should_be_squared(ssd) ? 0 : rc.corner_radius);
 		wlr_scene_node_set_position(&subtree->top->scene_buffer->node,
 			0, -(ssd->titlebar.height + theme->border_width));
 	}
