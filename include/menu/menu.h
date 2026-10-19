@@ -8,6 +8,7 @@
 struct view;
 struct server;
 struct wl_list;
+struct scaled_rect_buffer;
 struct wlr_scene_tree;
 struct wlr_scene_node;
 struct scaled_font_buffer;
@@ -56,6 +57,8 @@ struct menu {
 		struct menuitem *item;
 	} selection;
 	struct wlr_scene_tree *scene_tree;
+	struct scaled_rect_buffer *border_top, *border_bottom;
+	struct scaled_rect_buffer *border_left, *border_right;
 	bool is_pipemenu_child;
 	bool align_left;
 	bool has_icons;
