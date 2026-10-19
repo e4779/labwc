@@ -7,6 +7,10 @@
 #include "theme.h"
 #include "view.h"
 
+struct scaled_corner_buffer;
+
+void ssd_titlebar_update_corners(struct ssd *ssd);
+
 struct ssd_state_title_width {
 	int width;
 	bool truncated;
@@ -100,8 +104,8 @@ struct ssd {
 		struct wlr_scene_tree *tree;
 		struct ssd_titlebar_subtree {
 			struct wlr_scene_tree *tree;
-			struct wlr_scene_buffer *corner_left;
-			struct wlr_scene_buffer *corner_right;
+			struct scaled_corner_buffer *corner_left;
+			struct scaled_corner_buffer *corner_right;
 			struct wlr_scene_buffer *bar;
 			struct scaled_font_buffer *title;
 			struct wl_list buttons_left; /* ssd_button.link */
@@ -111,6 +115,7 @@ struct ssd {
 
 	/* Borders allow resizing as well */
 	struct scaled_rect_buffer;
+	struct scaled_corner_buffer;
 
 struct ssd_border_scene {
 		struct wlr_scene_tree *tree;

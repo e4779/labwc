@@ -36,29 +36,41 @@ ssd_border_create(struct ssd *ssd)
 		wlr_scene_node_set_enabled(&parent->node, active);
 		float *color = theme->window[active].border_color;
 
+		int vx = view->current.x;
+		int vy = view->current.y;
+
 		subtree->left = scaled_rect_buffer_create(parent);
 		wlr_scene_node_set_position(&subtree->left->scene_buffer->node, 0, 0);
 		scaled_rect_buffer_update(subtree->left,
-			theme->border_width, height, color);
+			theme->border_width, height, color,
+			SCALED_RECT_HUG_END, SCALED_RECT_SPAN_SNAP,
+			vx - theme->border_width, vy, vx, 0);
 
 		subtree->right = scaled_rect_buffer_create(parent);
 		wlr_scene_node_set_position(&subtree->right->scene_buffer->node,
 			theme->border_width + width, 0);
 		scaled_rect_buffer_update(subtree->right,
-			theme->border_width, height, color);
+			theme->border_width, height, color,
+			SCALED_RECT_HUG_START, SCALED_RECT_SPAN_SNAP,
+			vx + width, vy, vx + width, 0);
 
 		subtree->bottom = scaled_rect_buffer_create(parent);
 		wlr_scene_node_set_position(&subtree->bottom->scene_buffer->node,
 			0, height);
 		scaled_rect_buffer_update(subtree->bottom,
-			full_width, theme->border_width, color);
+			width, theme->border_width, color,
+			SCALED_RECT_SPAN_BETWEEN, SCALED_RECT_HUG_START,
+			vx - theme->border_width, vy + height, vx, vy + height);
 
 		subtree->top = scaled_rect_buffer_create(parent);
 		wlr_scene_node_set_position(&subtree->top->scene_buffer->node,
-			theme->border_width + corner_width,
-			-(ssd->titlebar.height + theme->border_width));
+			0, -(ssd->titlebar.height + theme->border_width));
 		scaled_rect_buffer_update(subtree->top,
-			MAX(width - 2 * corner_width, 0), theme->border_width, color);
+			width, theme->border_width, color,
+			SCALED_RECT_SPAN_BETWEEN, SCALED_RECT_HUG_START,
+			vx - theme->border_width,
+			vy - ssd->titlebar.height - theme->border_width,
+			vx, vy - ssd->titlebar.height - theme->border_width);
 	}
 
 	if (view->maximized == VIEW_AXIS_BOTH) {
@@ -128,36 +140,43 @@ ssd_border_update(struct ssd *ssd)
 	int side_y = ssd->state.was_squared
 		? -ssd->titlebar.height
 		: 0;
-	int top_width = ssd->titlebar.height <= 0 || ssd->state.was_squared
-		? full_width
-		: MAX(width - 2 * corner_width, 0);
-	int top_x = ssd->titlebar.height <= 0 || ssd->state.was_squared
-		? 0
-		: theme->border_width + corner_width;
-
 	enum ssd_active_state active;
 	FOR_EACH_ACTIVE_STATE(active) {
 		struct ssd_border_subtree *subtree = &ssd->border.subtrees[active];
 
+		int vx = view->current.x;
+		int vy = view->current.y;
+		float *color = theme->window[active].border_color;
+
 		scaled_rect_buffer_update(subtree->left,
-			theme->border_width, side_height, theme->window[active].border_color);
+			theme->border_width, side_height, color,
+			SCALED_RECT_HUG_END, SCALED_RECT_SPAN_SNAP,
+			vx - theme->border_width, vy + side_y, vx, 0);
 		wlr_scene_node_set_position(&subtree->left->scene_buffer->node,
 			0, side_y);
 
 		scaled_rect_buffer_update(subtree->right,
-			theme->border_width, side_height, theme->window[active].border_color);
+			theme->border_width, side_height, color,
+			SCALED_RECT_HUG_START, SCALED_RECT_SPAN_SNAP,
+			vx + width, vy + side_y, vx + width, 0);
 		wlr_scene_node_set_position(&subtree->right->scene_buffer->node,
 			theme->border_width + width, side_y);
 
 		scaled_rect_buffer_update(subtree->bottom,
-			full_width, theme->border_width, theme->window[active].border_color);
+			width, theme->border_width, color,
+			SCALED_RECT_SPAN_BETWEEN, SCALED_RECT_HUG_START,
+			vx - theme->border_width, vy + height, vx, vy + height);
 		wlr_scene_node_set_position(&subtree->bottom->scene_buffer->node,
 			0, height);
 
 		scaled_rect_buffer_update(subtree->top,
-			top_width, theme->border_width, theme->window[active].border_color);
+			width, theme->border_width, color,
+			SCALED_RECT_SPAN_BETWEEN, SCALED_RECT_HUG_START,
+			vx - theme->border_width,
+			vy - ssd->titlebar.height - theme->border_width,
+			vx, vy - ssd->titlebar.height - theme->border_width);
 		wlr_scene_node_set_position(&subtree->top->scene_buffer->node,
-			top_x, -(ssd->titlebar.height + theme->border_width));
+			0, -(ssd->titlebar.height + theme->border_width));
 	}
 }
 

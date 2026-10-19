@@ -4,4 +4,5 @@ labwc_sources += files(
   'scaled-img-buffer.c',
   'scaled-buffer.c',
   'scaled-rect-buffer.c',
+  'scaled-corner-buffer.c',
 )
