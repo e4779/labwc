@@ -889,7 +889,7 @@ menu_update_borders(struct menu *menu, int bx, int by)
 	scaled_rect_buffer_update(menu->border_top,
 		w, bw, color,
 		SCALED_RECT_SPAN_BETWEEN, SCALED_RECT_HUG_START,
-		bx, by, bx, by, 0, 0);
+		bx, by, bx, by, bw, bw);
 	wlr_scene_node_set_position(
 		&menu->border_top->scene_buffer->node, 0, 0);
 
@@ -897,7 +897,7 @@ menu_update_borders(struct menu *menu, int bx, int by)
 		w, bw, color,
 		SCALED_RECT_SPAN_BETWEEN, SCALED_RECT_HUG_END,
 		bx, by + h - th,
-		bx, by + h, 0, 0);
+		bx, by + h, bw, bw);
 	wlr_scene_node_set_position(
 		&menu->border_bottom->scene_buffer->node, 0, h - th);
 
