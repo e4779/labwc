@@ -3,7 +3,6 @@
 #define LABWC_SCALED_RECT_BUFFER_H
 
 #include <wayland-server-core.h>
-#include <stdbool.h>
 
 struct wlr_scene_tree;
 

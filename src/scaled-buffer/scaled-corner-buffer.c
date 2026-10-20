@@ -218,12 +218,9 @@ _render(struct scaled_corner_buffer *self)
 		}
 		cairo_stroke(cairo);
 	}
+	cairo_restore(cairo);
 
 	cairo_destroy(cairo);
-
-	self->last_x0 = x0;
-	self->last_y0 = y0;
-	self->rendered = true;
 
 	wlr_scene_buffer_set_buffer(self->scene_buffer, &buffer->base);
 	wlr_scene_buffer_set_dest_size(self->scene_buffer,
@@ -246,7 +243,6 @@ _handle_outputs_update(struct wl_listener *listener, void *data)
 	if (max_scale && self->active_scale != max_scale) {
 		scaled_buffer_last_output_scale = max_scale;
 		self->active_scale = max_scale;
-		self->rendered = false;
 		_render(self);
 	}
 }

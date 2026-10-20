@@ -2,10 +2,9 @@
 #ifndef LABWC_SCALED_CORNER_BUFFER_H
 #define LABWC_SCALED_CORNER_BUFFER_H
 
-#include <wayland-server-core.h>
-#include <stdbool.h>
-
 #include <cairo.h>
+#include <stdbool.h>
+#include <wayland-server-core.h>
 
 struct wlr_scene_tree;
 
@@ -38,8 +37,6 @@ struct scaled_corner_buffer {
 	double edge_x; /* content edge to align the side segment with */
 	double edge_y; /* titlebar top edge to align the top segment with */
 	double active_scale;
-	int last_x0, last_y0; /* last rendered device anchor */
-	bool rendered;
 	struct wl_listener outputs_update;
 	struct wl_listener destroy;
 };
