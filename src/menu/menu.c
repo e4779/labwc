@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 #define _POSIX_C_SOURCE 200809L
 #include "menu/menu.h"
+#include "scaled-buffer/scaled-rect-buffer.h"
 #include <assert.h>
 #include <ctype.h>
 #include <libxml/parser.h>
@@ -540,16 +541,23 @@ menu_create_scene(struct menu *menu)
 	}
 	menu->size.height = item_y + theme->menu_border_width;
 
+	/*
+	 * Device-space borders (fractional-scale safe). The plain
+	 * background fill stays a vector rect; only the border was
+	 * replaced. Anchors are absolute logical coordinates set in
+	 * menu_update_borders() once the menu is positioned.
+	 */
 	struct lab_scene_rect_options opts = {
-		.border_colors = (float *[1]) {theme->menu_border_color},
-		.nr_borders = 1,
-		.border_width = theme->menu_border_width,
 		.width = menu->size.width,
 		.height = menu->size.height,
 	};
 	struct lab_scene_rect *bg_rect =
 		lab_scene_rect_create(menu->scene_tree, &opts);
 	wlr_scene_node_lower_to_bottom(&bg_rect->tree->node);
+	menu->border_top = scaled_rect_buffer_create(menu->scene_tree);
+	menu->border_bottom = scaled_rect_buffer_create(menu->scene_tree);
+	menu->border_left = scaled_rect_buffer_create(menu->scene_tree);
+	menu->border_right = scaled_rect_buffer_create(menu->scene_tree);
 }
 
 /*
@@ -813,6 +821,8 @@ get_item_anchor_rect(struct theme *theme, struct menuitem *item)
 	};
 }
 
+static void menu_update_borders(struct menu *menu, int bx, int by);
+
 static void
 menu_reposition(struct menu *menu, struct wlr_box anchor_rect)
 {
@@ -857,8 +867,56 @@ menu_reposition(struct menu *menu, struct wlr_box anchor_rect)
 	wlr_xdg_positioner_rules_get_geometry(&rules, &box);
 	wlr_xdg_positioner_rules_unconstrain_box(&rules, &usable, &box);
 	wlr_scene_node_set_position(&menu->scene_tree->node, box.x, box.y);
-
+	menu_update_borders(menu, box.x, box.y);
 	menu->align_left = (box.x < anchor_rect.x);
+}
+
+static void
+menu_update_borders(struct menu *menu, int bx, int by)
+{
+	struct theme *theme = rc.theme;
+	float *color = theme->menu_border_color;
+	int w = menu->size.width;
+	int h = menu->size.height;
+	int bw = theme->menu_border_width;
+
+	/*
+	 * HUG_END strips need their nodes near the far edges so the
+	 * anchored ink lands inside the buffer. total = round_up_4(bw + 4),
+	 * computed locally (the buffer fields are only valid after the
+	 * first update).
+	 */
+	int tw = (bw + 7) & ~3;
+	int th = tw;
+	scaled_rect_buffer_update(menu->border_top,
+		w, bw, color,
+		SCALED_RECT_SPAN_BETWEEN, SCALED_RECT_HUG_START,
+		bx, by, bx, by, bw, bw);
+	wlr_scene_node_set_position(
+		&menu->border_top->scene_buffer->node, 0, 0);
+
+	scaled_rect_buffer_update(menu->border_bottom,
+		w, bw, color,
+		SCALED_RECT_SPAN_BETWEEN, SCALED_RECT_HUG_END,
+		bx, by + h - th,
+		bx, by + h, bw, bw);
+	wlr_scene_node_set_position(
+		&menu->border_bottom->scene_buffer->node, 0, h - th);
+
+	scaled_rect_buffer_update(menu->border_left,
+		bw, h, color,
+		SCALED_RECT_HUG_START, SCALED_RECT_SPAN_SNAP,
+		bx, by, bx, by, 0, 0);
+	wlr_scene_node_set_position(
+		&menu->border_left->scene_buffer->node, 0, 0);
+
+	scaled_rect_buffer_update(menu->border_right,
+		bw, h, color,
+		SCALED_RECT_HUG_END, SCALED_RECT_SPAN_SNAP,
+		bx + w - tw, by,
+		bx + w, by, 0, 0);
+	wlr_scene_node_set_position(
+		&menu->border_right->scene_buffer->node, w - tw, 0);
 }
 
 static void
