@@ -12,9 +12,11 @@
 #include "labwc.h"
 #include "node.h"
 #include "scaled-buffer/scaled-font-buffer.h"
+#include "scaled-buffer/scaled-rect-buffer.h"
 #include "scaled-buffer/scaled-icon-buffer.h"
 #include "scaled-buffer/scaled-img-buffer.h"
 #include "ssd.h"
+#include "scaled-buffer/scaled-corner-buffer.h"
 #include "ssd-internal.h"
 #include "theme.h"
 #include "view.h"
@@ -45,10 +47,30 @@ ssd_titlebar_create(struct ssd *ssd)
 
 		struct wlr_buffer *titlebar_fill =
 			&theme->window[active].titlebar_fill->base;
-		struct wlr_buffer *corner_top_left =
-			&theme->window[active].corner_top_left_normal->base;
-		struct wlr_buffer *corner_top_right =
-			&theme->window[active].corner_top_right_normal->base;
+		int vx = view->current.x;
+		int vy = view->current.y;
+		int cbw = ssd_get_corner_width() + theme->border_width;
+		int cbh = theme->titlebar_height + theme->border_width;
+
+		/*
+		 * Titlebar-colored underlay below everything else in the
+		 * titlebar tree: fills the one-row rounding hole between the
+		 * top border ink and the titlebar fill on phases where they
+		 * round apart. Created first so the corner arcs (same rows
+		 * in their zone) draw their ink on top of it.
+		 */
+		int tw = (theme->border_width + 7) & ~3;
+		subtree->underlay = scaled_rect_buffer_create(parent);
+		wlr_scene_node_set_position(
+			&subtree->underlay->scene_buffer->node, 0, -tw);
+		scaled_rect_buffer_update(subtree->underlay,
+			width, theme->border_width,
+			theme->window[active].title_bg.color,
+			SCALED_RECT_SPAN_BETWEEN, SCALED_RECT_HUG_END,
+			vx, vy - theme->titlebar_height - tw,
+			vx, vy - theme->titlebar_height,
+			theme->border_width + rc.corner_radius,
+			theme->border_width + rc.corner_radius);
 
 		/* Background */
 		subtree->bar = lab_wlr_scene_buffer_create(parent, titlebar_fill);
@@ -64,13 +86,24 @@ ssd_titlebar_create(struct ssd *ssd)
 		}
 		wlr_scene_node_set_position(&subtree->bar->node, corner_width, 0);
 
-		subtree->corner_left = lab_wlr_scene_buffer_create(parent, corner_top_left);
-		wlr_scene_node_set_position(&subtree->corner_left->node,
+		subtree->corner_left = scaled_corner_buffer_create(parent);
+		wlr_scene_node_set_position(&subtree->corner_left->scene_buffer->node,
 			-rc.theme->border_width, -rc.theme->border_width);
+		scaled_corner_buffer_update(subtree->corner_left,
+			cbw, cbh, rc.corner_radius, theme->border_width,
+			theme->window[active].titlebar_pattern,
+			theme->window[active].border_color, false,
+			vx - theme->border_width, vy - cbh, vx, vy - cbh);
 
-		subtree->corner_right = lab_wlr_scene_buffer_create(parent, corner_top_right);
-		wlr_scene_node_set_position(&subtree->corner_right->node,
+		subtree->corner_right = scaled_corner_buffer_create(parent);
+		wlr_scene_node_set_position(&subtree->corner_right->scene_buffer->node,
 			width - corner_width, -rc.theme->border_width);
+		scaled_corner_buffer_update(subtree->corner_right,
+			cbw, cbh, rc.corner_radius, theme->border_width,
+			theme->window[active].titlebar_pattern,
+			theme->window[active].border_color, true,
+			vx + width - corner_width, vy - cbh,
+			vx + width, vy - cbh);
 
 		/* Title */
 		subtree->title = scaled_font_buffer_create_for_titlebar(
@@ -172,9 +205,9 @@ set_squared_corners(struct ssd *ssd, bool enable)
 		wlr_scene_buffer_set_dest_size(subtree->bar,
 			MAX(width - 2 * x, 0), theme->titlebar_height);
 
-		wlr_scene_node_set_enabled(&subtree->corner_left->node, !enable);
+		wlr_scene_node_set_enabled(&subtree->corner_left->scene_buffer->node, !enable);
 
-		wlr_scene_node_set_enabled(&subtree->corner_right->node, !enable);
+		wlr_scene_node_set_enabled(&subtree->corner_right->scene_buffer->node, !enable);
 
 		/* (Un)round the corner buttons */
 		struct ssd_button *button;
@@ -324,8 +357,9 @@ ssd_titlebar_update(struct ssd *ssd)
 		}
 
 		x = width - corner_width;
-		wlr_scene_node_set_position(&subtree->corner_right->node,
+		wlr_scene_node_set_position(&subtree->corner_right->scene_buffer->node,
 			x, -rc.theme->border_width);
+		ssd_titlebar_update_corners(ssd);
 
 		x = width - theme->window_titlebar_padding_width + theme->window_button_spacing;
 		wl_list_for_each(button, &subtree->buttons_right, link) {
@@ -518,4 +552,45 @@ ssd_should_be_squared(struct ssd *ssd)
 	return (view_is_tiled_and_notify_tiled(view)
 			|| view->current.width < corner_width * 2)
 		&& view->maximized != VIEW_AXIS_BOTH;
+}
+
+void
+ssd_titlebar_update_corners(struct ssd *ssd)
+{
+	struct view *view = ssd->view;
+	struct theme *theme = rc.theme;
+	int width = view->current.width;
+	int corner_width = ssd_get_corner_width();
+	int vx = view->current.x;
+	int vy = view->current.y;
+	int cbh = theme->titlebar_height + theme->border_width;
+
+	enum ssd_active_state active;
+	FOR_EACH_ACTIVE_STATE(active) {
+		struct ssd_titlebar_subtree *subtree = &ssd->titlebar.subtrees[active];
+		{
+			int tw = (theme->border_width + 7) & ~3;
+			scaled_rect_buffer_update(subtree->underlay,
+				width, theme->border_width,
+				theme->window[active].title_bg.color,
+				SCALED_RECT_SPAN_BETWEEN, SCALED_RECT_HUG_END,
+				vx, vy - theme->titlebar_height - tw,
+				vx, vy - theme->titlebar_height,
+				theme->border_width + rc.corner_radius,
+				theme->border_width + rc.corner_radius);
+		}
+		scaled_corner_buffer_update(subtree->corner_left,
+			ssd_get_corner_width() + theme->border_width, cbh,
+			rc.corner_radius, theme->border_width,
+			theme->window[active].titlebar_pattern,
+			theme->window[active].border_color, false,
+			vx - theme->border_width, vy - cbh, vx, vy - cbh);
+		scaled_corner_buffer_update(subtree->corner_right,
+			ssd_get_corner_width() + theme->border_width, cbh,
+			rc.corner_radius, theme->border_width,
+			theme->window[active].titlebar_pattern,
+			theme->window[active].border_color, true,
+			vx + width - corner_width, vy - cbh,
+			vx + width, vy - cbh);
+	}
 }

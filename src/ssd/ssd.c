@@ -242,6 +242,7 @@ ssd_update_geometry(struct ssd *ssd)
 
 	if (update_area || state_changed) {
 		ssd_titlebar_update(ssd);
+		ssd_titlebar_update_corners(ssd);
 		ssd_border_update(ssd);
 		ssd_shadow_update(ssd);
 	} else if (update_extents) {
@@ -251,6 +252,7 @@ ssd_update_geometry(struct ssd *ssd)
 		 * re-anchor to the snapped content edge.
 		 */
 		ssd_border_update(ssd);
+		ssd_titlebar_update_corners(ssd);
 	}
 
 	if (update_extents) {
