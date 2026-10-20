@@ -89,7 +89,11 @@ _render(struct scaled_corner_buffer *self)
 	 */
 	double dx_dev, dy_dev = y0;
 	if (self->right) {
-		dx_dev = x0 - (lround(w * s) - t);
+		/* Anchor the logical drawing so its right ink edge lands
+		 * exactly on the snapped vertical ink anchor (x0 + t),
+		 * independent of how the fill width rounded. */
+		int rwd = snap(self->edge_x, s) - snap(self->node_x, s);
+		dx_dev = x0 + t - rwd;
 	} else {
 		dx_dev = x0;
 	}
@@ -104,7 +108,9 @@ _render(struct scaled_corner_buffer *self)
 	 * row/column of the corner box edge, otherwise cairo anti-aliases
 	 * the last row and it composites half-transparent over whatever
 	 * is drawn below the corner. */
-	double wd = snap(self->node_x + w, s) - snap(self->node_x, s);
+	double wd = (self->right
+		? snap(self->edge_x, s) : snap(self->node_x + w, s))
+		- snap(self->node_x, s);
 	double hd = snap(self->node_y + h, s) - snap(self->node_y, s);
 	double rd = r * s;
 	double bwd = bw * s;
@@ -127,12 +133,15 @@ _render(struct scaled_corner_buffer *self)
 	} else if (self->right) {
 		cairo_arc(cairo, wd - rd, rd, rd, -90 * LAB_CORNER_DEG, 0);
 		cairo_line_to(cairo, wd, hd);
-		cairo_line_to(cairo, 0, hd);
+		/* Skirt under the bar fill: overlap a few logical px so the
+		 * independently rounded bar edge never opens a seam. */
+		cairo_line_to(cairo, -4, hd);
+		cairo_line_to(cairo, -4, 0);
 		cairo_line_to(cairo, 0, 0);
 	} else {
 		cairo_arc(cairo, rd, rd, rd, 180 * LAB_CORNER_DEG, 270 * LAB_CORNER_DEG);
-		cairo_line_to(cairo, wd, 0);
-		cairo_line_to(cairo, wd, hd);
+		cairo_line_to(cairo, wd + 4, 0);
+		cairo_line_to(cairo, wd + 4, hd);
 		cairo_line_to(cairo, 0, hd);
 	}
 	cairo_close_path(cairo);
@@ -159,14 +168,20 @@ _render(struct scaled_corner_buffer *self)
 		if (box_h > vy0) {
 			cairo_rectangle(cairo, x0, vy0, t, box_h - vy0);
 		}
+		/* Extend the straight segments 2px into the curve AA zone:
+		 * the snap-derived segment start and the rounded curve edge
+		 * can leave a one-pixel hole between them; overdrawing it
+		 * with opaque ink (same color as the curve outline) closes
+		 * it on every phase. */
 		if (self->right) {
 			int hx = x0 + t - Rdev + 1;
 			if (hx > 0) {
-				cairo_rectangle(cairo, 0, y0, MIN(hx, box_w), t);
+				cairo_rectangle(cairo, 0, y0, MIN(hx + 2, buf_w), t);
 			}
 		} else {
-			if (box_w > x0 + seg) {
-				cairo_rectangle(cairo, x0 + seg, y0, box_w - x0 - seg, t);
+			int sx = MAX(0, x0 + seg - 2);
+			if (box_w > sx) {
+				cairo_rectangle(cairo, sx, y0, box_w - sx, t);
 			}
 		}
 		cairo_fill(cairo);
@@ -176,7 +191,11 @@ _render(struct scaled_corner_buffer *self)
 	cairo_save(cairo);
 	cairo_translate(cairo, dx_dev, dy_dev);
 	if (r > 0) {
-		double line_width = MIN(bwd, rd);
+		/* Stroke width in whole device pixels (t), matching the
+		 * straight ink segments: a fractional width overhangs the
+		 * straight ink anchor by a subpixel and the vertical border
+		 * column wobbles between the curve and straight sections. */
+		double line_width = MIN((double)t, rd);
 		double half_lw = line_width / 2.0;
 		cairo_set_line_width(cairo, line_width);
 		if (self->right) {

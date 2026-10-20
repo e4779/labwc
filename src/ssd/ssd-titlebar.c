@@ -12,6 +12,7 @@
 #include "labwc.h"
 #include "node.h"
 #include "scaled-buffer/scaled-font-buffer.h"
+#include "scaled-buffer/scaled-rect-buffer.h"
 #include "scaled-buffer/scaled-icon-buffer.h"
 #include "scaled-buffer/scaled-img-buffer.h"
 #include "ssd.h"
@@ -50,6 +51,24 @@ ssd_titlebar_create(struct ssd *ssd)
 		int vy = view->current.y;
 		int cbw = ssd_get_corner_width() + theme->border_width;
 		int cbh = theme->titlebar_height + theme->border_width;
+
+		/* Titlebar-colored underlay below everything else in the
+		 * titlebar tree: fills the one-row rounding hole between the
+		 * top border ink and the titlebar fill on phases where they
+		 * round apart. Created first so the corner arcs (same rows
+		 * in their zone) draw their ink on top of it. */
+		int tw = (theme->border_width + 7) & ~3;
+		subtree->underlay = scaled_rect_buffer_create(parent);
+		wlr_scene_node_set_position(
+			&subtree->underlay->scene_buffer->node, 0, -tw);
+		scaled_rect_buffer_update(subtree->underlay,
+			width, theme->border_width,
+			theme->window[active].title_bg.color,
+			SCALED_RECT_SPAN_BETWEEN, SCALED_RECT_HUG_END,
+			vx, vy - theme->titlebar_height - tw,
+			vx, vy - theme->titlebar_height,
+			theme->border_width + rc.corner_radius,
+			theme->border_width + rc.corner_radius);
 
 		/* Background */
 		subtree->bar = lab_wlr_scene_buffer_create(parent, titlebar_fill);
@@ -547,6 +566,17 @@ ssd_titlebar_update_corners(struct ssd *ssd)
 	enum ssd_active_state active;
 	FOR_EACH_ACTIVE_STATE(active) {
 		struct ssd_titlebar_subtree *subtree = &ssd->titlebar.subtrees[active];
+		{
+			int tw = (theme->border_width + 7) & ~3;
+			scaled_rect_buffer_update(subtree->underlay,
+				width, theme->border_width,
+				theme->window[active].title_bg.color,
+				SCALED_RECT_SPAN_BETWEEN, SCALED_RECT_HUG_END,
+				vx, vy - theme->titlebar_height - tw,
+				vx, vy - theme->titlebar_height,
+				theme->border_width + rc.corner_radius,
+				theme->border_width + rc.corner_radius);
+		}
 		scaled_corner_buffer_update(subtree->corner_left,
 			ssd_get_corner_width() + theme->border_width, cbh,
 			rc.corner_radius, theme->border_width,
