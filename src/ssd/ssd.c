@@ -16,6 +16,7 @@
 #include "config/rcxml.h"
 #include "labwc.h"
 #include "node.h"
+#include "scaled-buffer/scaled-rect-buffer.h"
 #include "ssd-internal.h"
 #include "theme.h"
 #include "view.h"
@@ -243,6 +244,13 @@ ssd_update_geometry(struct ssd *ssd)
 		ssd_titlebar_update(ssd);
 		ssd_border_update(ssd);
 		ssd_shadow_update(ssd);
+	} else if (update_extents) {
+		/*
+		 * Pure move: the device snap phase of the window
+		 * changed, so device space borders need to
+		 * re-anchor to the snapped content edge.
+		 */
+		ssd_border_update(ssd);
 	}
 
 	if (update_extents) {
@@ -349,7 +357,8 @@ ssd_enable_keybind_inhibit_indicator(struct ssd *ssd, bool enable)
 	float *color = enable
 		? rc.theme->window_toggled_keybinds_color
 		: rc.theme->window[SSD_ACTIVE].border_color;
-	wlr_scene_rect_set_color(ssd->border.subtrees[SSD_ACTIVE].top, color);
+	scaled_rect_buffer_set_color(
+		ssd->border.subtrees[SSD_ACTIVE].top, color);
 }
 
 bool
