@@ -122,6 +122,9 @@ struct ssd_border_scene {
 		struct ssd_border_subtree {
 			struct wlr_scene_tree *tree;
 			struct scaled_rect_buffer *top, *bottom, *left, *right;
+			/* Titlebar-colored strip under the top border ink; fills the
+			 * rounding hole between border and titlebar fill */
+			struct scaled_rect_buffer *underlay;
 		} subtrees[2]; /* indexed by enum ssd_active_state */
 	} border;
 

@@ -100,8 +100,12 @@ _render(struct scaled_corner_buffer *self)
 	 * buffer_create_cairo() so integer coordinates are crisp */
 	cairo_surface_set_device_scale(buffer->surface, 1, 1);
 	cairo_t *cairo = cairo_create(buffer->surface);
-	double wd = w * s;
-	double hd = h * s;
+	/* Snap-derived extents: the fill must end exactly on a device
+	 * row/column of the corner box edge, otherwise cairo anti-aliases
+	 * the last row and it composites half-transparent over whatever
+	 * is drawn below the corner. */
+	double wd = snap(self->node_x + w, s) - snap(self->node_x, s);
+	double hd = snap(self->node_y + h, s) - snap(self->node_y, s);
 	double rd = r * s;
 	double bwd = bw * s;
 

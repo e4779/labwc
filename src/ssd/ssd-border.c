@@ -63,6 +63,25 @@ ssd_border_create(struct ssd *ssd)
 			vx - theme->border_width, vy + height, vx, vy + height,
 			0, 0);
 
+		/* Titlebar-colored underlay hugging the titlebar top edge
+		 * from below the border ink. When the window phase rounds
+		 * the titlebar fill one device row below the border ink, the
+		 * underlay fills that hole; otherwise it is hidden below the
+		 * ink strip (same rows, opaque ink on top). */
+		int tw = (theme->border_width + 7) & ~3;
+		subtree->underlay = scaled_rect_buffer_create(parent);
+		wlr_scene_node_set_position(
+			&subtree->underlay->scene_buffer->node,
+			0, -(ssd->titlebar.height + tw));
+		scaled_rect_buffer_update(subtree->underlay,
+			width, theme->border_width,
+			theme->window[active].title_bg.color,
+			SCALED_RECT_SPAN_BETWEEN, SCALED_RECT_HUG_END,
+			vx, vy - ssd->titlebar.height - tw,
+			vx, vy - ssd->titlebar.height,
+			ssd_should_be_squared(ssd) ? 0 : rc.corner_radius,
+			ssd_should_be_squared(ssd) ? 0 : rc.corner_radius);
+
 		subtree->top = scaled_rect_buffer_create(parent);
 		wlr_scene_node_set_position(&subtree->top->scene_buffer->node,
 			0, -(ssd->titlebar.height + theme->border_width));
@@ -172,6 +191,21 @@ ssd_border_update(struct ssd *ssd)
 			0, 0);
 		wlr_scene_node_set_position(&subtree->bottom->scene_buffer->node,
 			0, height);
+
+		{
+			int tw = (theme->border_width + 7) & ~3;
+			scaled_rect_buffer_update(subtree->underlay,
+				width, theme->border_width,
+				theme->window[active].title_bg.color,
+				SCALED_RECT_SPAN_BETWEEN, SCALED_RECT_HUG_END,
+				vx, vy - ssd->titlebar.height - tw,
+				vx, vy - ssd->titlebar.height,
+				ssd_should_be_squared(ssd) ? 0 : rc.corner_radius,
+				ssd_should_be_squared(ssd) ? 0 : rc.corner_radius);
+			wlr_scene_node_set_position(
+				&subtree->underlay->scene_buffer->node,
+				0, -(ssd->titlebar.height + tw));
+		}
 
 		scaled_rect_buffer_update(subtree->top,
 			width, theme->border_width, color,
